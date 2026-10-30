@@ -21,6 +21,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--password", default="moneta-demo-2026")
+        parser.add_argument(
+            "--kaspi-last4",
+            default="",
+            help="Card ending for the demo Kaspi account, so a real statement for that "
+            "card can be uploaded to it. Defaults to the sample statement's card.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -40,6 +46,9 @@ class Command(BaseCommand):
         import_statement(
             halyk, parse_lines(halyk_lines()), "halyk_card_sample.pdf", review
         )
+        if options["kaspi_last4"]:
+            kaspi.last4 = options["kaspi_last4"]
+            kaspi.save(update_fields=["last4"])
         self.stdout.write(
             self.style.SUCCESS(f"Demo user {DEMO_EMAIL} ready (review {review.id}).")
         )
