@@ -31,6 +31,15 @@ export interface Review {
   intake_completed_at: string | null;
   completed_at: string | null;
   open_flags: number;
+  sources: ReviewSource[];
+}
+
+export interface ReviewSource {
+  id: string;
+  label: string;
+  bank: Bank;
+  last4: string;
+  statements: { file_name: string; period_start: string; period_end: string }[];
 }
 
 export interface StatementImport {

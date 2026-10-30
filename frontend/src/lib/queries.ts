@@ -69,6 +69,14 @@ export function useCreateReview() {
   });
 }
 
+export function useDeleteReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => api.delete(`/reviews/${id}/`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.reviews }),
+  });
+}
+
 export function useUpdateReview(id: string) {
   const qc = useQueryClient();
   return useMutation({

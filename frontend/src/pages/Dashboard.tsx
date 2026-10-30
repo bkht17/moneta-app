@@ -22,7 +22,7 @@ export default function Dashboard() {
       {unfinished && (!latestComplete || unfinished.created_at > latestComplete.created_at) && (
         <div className="card flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="font-medium">You have an unfinished review for {formatMonth(unfinished.month)}</p>
+            <p className="font-medium">Unfinished draft for {formatMonth(unfinished.month)}</p>
             <p className="text-sm text-slate-500">
               {unfinished.status === "needs_confirmation"
                 ? `${unfinished.open_flags} item(s) need your answer before the total is shown.`
@@ -30,7 +30,7 @@ export default function Dashboard() {
             </p>
           </div>
           <Link to={`/reviews/${unfinished.id}`} className="add-btn">
-            Continue
+            Continue draft
           </Link>
         </div>
       )}

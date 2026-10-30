@@ -63,7 +63,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
     lookup_value_converter = "uuid"
 
     def get_queryset(self):
-        return self.request.user.reviews.prefetch_related("accounts")
+        reviews = self.request.user.reviews.prefetch_related("accounts")
+        # ?status=complete lists finished reviews only; ?status=draft,needs_confirmation
+        # lists the unfinished ones.
+        statuses = [
+            s for s in self.request.query_params.get("status", "").split(",") if s
+        ]
+        if statuses and self.action == "list":
+            reviews = reviews.filter(status__in=statuses)
+        return reviews
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

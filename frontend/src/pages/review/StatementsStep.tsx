@@ -24,14 +24,30 @@ export default function StatementsStep({ review, onNext }: { review: Review; onN
 
   const c = coverage.data;
   const missing = c.accounts.filter((a) => !a.covered_until || a.starts_late_on).length;
+  const canRemove = review.accounts.length > 1;
+
+  const removeAccount = (account: AccountCoverage) =>
+    updateReview.mutate(
+      { accounts: review.accounts.filter((id) => id !== account.id) },
+      {
+        onSuccess: () => {
+          toast.success(`${account.label} removed from this review.`);
+          coverage.refetch();
+        },
+        onError: (err) => toast.error(apiErrors(err)[0]?.message ?? "Couldn't remove the account."),
+      },
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Add a statement for each account</h1>
+          <h1 className="text-2xl font-semibold">Add a statement for each selected account</h1>
           <p className="text-sm text-slate-500">
             PDF from the 1st of the month to the latest date your bank shows. Budget {formatKzt(review.budget_kzt)}.
+          </p>
+          <p className="text-xs text-slate-500">
+            Kaspi Gold and Halyk card statements in Russian, Kazakh or English.
           </p>
         </div>
         <button type="button" className="card-btn" onClick={() => setEditing((v) => !v)}>
@@ -66,6 +82,8 @@ export default function StatementsStep({ review, onNext }: { review: Review; onN
           account={account}
           errors={uploadErrors[account.id] ?? []}
           setErrors={(errs) => setUploadErrors((e) => ({ ...e, [account.id]: errs }))}
+          onRemove={canRemove ? () => removeAccount(account) : undefined}
+          removing={updateReview.isPending}
         />
       ))}
 
@@ -77,7 +95,10 @@ export default function StatementsStep({ review, onNext }: { review: Review; onN
       ) : (
         <Notice tone="warn">
           {missing === 1 ? "1 account still needs" : `${missing} accounts still need`} a statement starting on{" "}
-          {formatDay(review.month)}. The review can't start until every account is covered.
+          {formatDay(review.month)}.{" "}
+          {canRemove
+            ? "Upload it, or remove the account from this review if you only want to review the others."
+            : "Upload it to continue."}
         </Notice>
       )}
 
@@ -93,11 +114,15 @@ function AccountCard({
   account,
   errors,
   setErrors,
+  onRemove,
+  removing,
 }: {
   reviewId: string;
   account: AccountCoverage;
   errors: ApiError[];
   setErrors: (errors: ApiError[]) => void;
+  onRemove?: () => void;
+  removing?: boolean;
 }) {
   const upload = useUploadStatement(reviewId);
   const input = useRef<HTMLInputElement>(null);
@@ -150,6 +175,16 @@ function AccountCard({
               </li>
             ))}
           </ul>
+          {!ok && onRemove && (
+            <button
+              type="button"
+              className="mt-2 cursor-pointer text-xs font-medium text-primary underline"
+              disabled={removing}
+              onClick={onRemove}
+            >
+              No statement for this account? Remove {account.label} from this review
+            </button>
+          )}
         </div>
         <input
           ref={input}

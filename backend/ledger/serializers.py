@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import BankAccount, Review, ReviewFlag, StatementImport, Transaction
@@ -32,6 +33,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         many=True, queryset=BankAccount.objects.none()
     )
     open_flags = serializers.SerializerMethodField()
+    sources = serializers.SerializerMethodField()
 
     class Meta:
         model = Review
@@ -49,6 +51,7 @@ class ReviewSerializer(serializers.ModelSerializer):
             "intake_completed_at",
             "completed_at",
             "open_flags",
+            "sources",
         )
         read_only_fields = (
             "id",
@@ -72,6 +75,44 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     def get_open_flags(self, obj) -> int:
         return obj.flags.filter(resolved_at__isnull=True).count()
+
+    @extend_schema_field(serializers.ListField(child=serializers.DictField()))
+    def get_sources(self, obj):
+        """The accounts a review covers and the statements it relies on, so the
+        history can say what each saved review is about."""
+        from .services.intake import month_end
+
+        last_day = month_end(obj.month)
+        sources = []
+        for account in obj.accounts.all():
+            statements = account.statements.filter(
+                period_end__gte=obj.month, period_start__lte=last_day
+            ).order_by("period_start")
+            if obj.completed_at:
+                # A finished review keeps showing what it was calculated from.
+                statements = statements.filter(imported_at__lte=obj.completed_at)
+            sources.append(
+                {
+                    "id": str(account.id),
+                    "label": account.label,
+                    "bank": account.bank,
+                    "last4": account.last4,
+                    "statements": [
+                        {
+                            "file_name": st.file_name,
+                            "period_start": st.period_start,
+                            "period_end": st.period_end,
+                        }
+                        for st in statements
+                    ],
+                }
+            )
+        return sources
+
+    def validate_accounts(self, value):
+        if not value:
+            raise serializers.ValidationError("Choose at least one account.")
+        return value
 
     def validate_month(self, value):
         return value.replace(day=1)

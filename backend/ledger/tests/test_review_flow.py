@@ -320,3 +320,98 @@ class TestNFR1Privacy:
         api = APIClient()
         api.force_authenticate(stranger)
         assert api.get(f"/api/reviews/{imported.id}/").status_code == 404
+
+
+# --- One account and unfinished reviews ------------------------------------------
+
+
+class TestSingleAccount:
+    def test_review_with_one_account_reaches_the_overview(self, client, user, accounts):
+        kaspi = accounts[0]
+        created = client.post(
+            "/api/reviews/",
+            {"month": "2026-10-01", "budget_kzt": 100000, "accounts": [str(kaspi.id)]},
+            format="json",
+        )
+        assert created.status_code == 201
+        review = Review.objects.get(pk=created.json()["id"])
+        import_statement(kaspi, parse_lines(kaspi_lines()), "kaspi.pdf", review)
+
+        response = submit(client, review, cash_kzt="8000")
+        assert response.status_code == 200
+        assert response.json()["cutoff_date"] == "2026-10-15"
+        flags = answer_all(client, review)
+        # With one account there is no second side for an own-account transfer.
+        assert [f["type"] for f in flags] == ["possible_duplicate"]
+
+        body = overview(client, review).json()
+        categories = {c["name"]: c["amount"] for c in body["categories"]}
+        assert [a["label"] for a in body["accounts"]] == ["Kaspi Gold"]
+        assert body["spending"] == 43000
+        assert categories["Transfers to people"] == 20000
+        assert body["remaining"] == 57000
+
+    def test_removing_an_account_without_a_statement_unblocks_intake(
+        self, client, review, accounts
+    ):
+        kaspi, halyk = accounts
+        import_statement(kaspi, parse_lines(kaspi_lines()), "kaspi.pdf", review)
+        assert "missing_statement" in codes(submit(client, review, cash_kzt="8000"))
+
+        response = client.patch(
+            f"/api/reviews/{review.id}/", {"accounts": [str(kaspi.id)]}, format="json"
+        )
+        assert response.status_code == 200
+        assert submit(client, review, cash_kzt="8000").status_code == 200
+
+    def test_review_needs_at_least_one_account(self, client):
+        response = client.post(
+            "/api/reviews/",
+            {"month": "2026-10-01", "budget_kzt": 100000, "accounts": []},
+            format="json",
+        )
+        assert response.status_code == 400
+        assert "accounts" in response.json()
+
+
+class TestUnfinishedReviews:
+    def test_history_filter_returns_only_complete_reviews(self, client, imported, user):
+        submit(client, imported, cash_kzt="8000")
+        answer_all(client, imported)
+        draft = Review.objects.create(
+            user=user, month=date(2026, 10, 1), budget_kzt=Decimal("100000")
+        )
+
+        complete = client.get("/api/reviews/?status=complete").json()
+        unfinished = client.get("/api/reviews/?status=draft,needs_confirmation").json()
+
+        assert [r["id"] for r in complete] == [str(imported.id)]
+        assert [r["id"] for r in unfinished] == [str(draft.id)]
+
+    def test_finished_review_lists_only_statements_it_was_built_from(
+        self, client, imported, accounts
+    ):
+        submit(client, imported, cash_kzt="8000")
+        answer_all(client, imported)
+        import_statement(accounts[0], parse_lines(kaspi_lines()), "later.pdf")
+
+        body = client.get(f"/api/reviews/{imported.id}/").json()
+        files = [st["file_name"] for s in body["sources"] for st in s["statements"]]
+        assert "later.pdf" not in files
+
+    def test_each_review_names_its_accounts_and_statements(self, client, imported):
+        body = client.get(f"/api/reviews/{imported.id}/").json()
+
+        sources = {s["label"]: s for s in body["sources"]}
+        assert set(sources) == {"Kaspi Gold", "Halyk card"}
+        assert sources["Kaspi Gold"]["statements"] == [
+            {
+                "file_name": "kaspi.pdf",
+                "period_start": "2026-10-01",
+                "period_end": "2026-10-15",
+            }
+        ]
+
+    def test_a_draft_can_be_discarded(self, client, review):
+        assert client.delete(f"/api/reviews/{review.id}/").status_code == 204
+        assert not Review.objects.filter(pk=review.id).exists()

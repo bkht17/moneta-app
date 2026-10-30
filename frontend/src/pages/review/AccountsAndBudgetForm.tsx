@@ -65,7 +65,10 @@ export default function AccountsAndBudgetForm({ initial, submitLabel, busy, onSu
       }}
     >
       <fieldset>
-        <legend className="text-[13px] font-medium text-slate-800">Your accounts</legend>
+        <legend className="text-[13px] font-medium text-slate-800">Accounts in this review</legend>
+        <p className="mt-0.5 text-xs text-slate-500">
+          Select the accounts you have a statement for. One account is enough.
+        </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {accounts.data?.map((a) => {
             const on = values.accounts.includes(a.id);
