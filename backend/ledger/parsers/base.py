@@ -53,6 +53,7 @@ DATE_RE = r"\d{2}\.\d{2}\.(?:\d{4}|\d{2})"
 PERIOD_PATTERNS = (
     re.compile(rf"с\s+({DATE_RE})\s+по\s+({DATE_RE})", re.IGNORECASE),
     re.compile(rf"период\D{{0,20}}({DATE_RE})\s*[-–—]\s*({DATE_RE})", re.IGNORECASE),
+    re.compile(rf"from\s+({DATE_RE})\s+to\s+({DATE_RE})", re.IGNORECASE),
 )
 LONG_NUMBER_RE = re.compile(r"(?:KZ\d{2}[0-9A-Z]{13,})|\d[\d ]{7,}\d")
 

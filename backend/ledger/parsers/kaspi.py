@@ -1,8 +1,13 @@
-"""Kaspi Gold statement ("Выписка по Kaspi Gold").
+"""Kaspi Gold statement, Russian ("Выписка по Kaspi Gold") or English
+("Kaspi Gold balance statement").
 
 Expected table rows, one per line after text extraction:
-    02.10.25  + 42 000,00 ₸  Пополнение  С карты другого банка
-    03.10.25  - 6 200,00 ₸   Покупка     MAGNUM CASH&CARRY
+    02.10.25  + 42 000,00 ₸  Пополнение     С карты другого банка
+    03.10.25  - 6 200,00 ₸   Покупка        MAGNUM CASH&CARRY
+    03.10.25  - 6 200,00 ₸   Purchases      MAGNUM CASH&CARRY
+    05.10.25  + 9 000,00 ₸   Replenishment  At Kaspi ATM
+
+English operation names are mapped to the Russian ones the rest of the app uses.
 """
 
 import re
@@ -23,20 +28,38 @@ LAYOUT = "kaspi-gold-v1"
 ROW_RE = re.compile(
     # The tenge sign is optional: some PDF fonts lack the glyph and extract it as "\x00".
     rf"^(?P<date>\d{{2}}\.\d{{2}}\.\d{{2}})\s+(?P<amount>{AMOUNT_RE})\s*(?:₸|KZT|[^\w\s])?\s+"
-    r"(?P<op>Покупки|Покупка|Пополнения|Пополнение|Переводы|Перевод|Снятия|Снятие|Разное)"
+    r"(?P<op>Покупки|Покупка|Пополнения|Пополнение|Переводы|Перевод|Снятия|Снятие|Разное"
+    r"|Purchases|Purchase|Replenishments|Replenishment|Transfers|Transfer"
+    r"|Withdrawals|Withdrawal|Others|Other)\b"
     r"\s*(?P<details>.*)$"
 )
-CARD_RE = re.compile(r"(?:номер карты|карта)\D{0,20}\*+\s?(\d{4})", re.IGNORECASE)
+CARD_RE = re.compile(
+    r"(?:номер карты|карта|card number)\D{0,20}\*+\s?(\d{4})", re.IGNORECASE
+)
 OPERATIONS = {
     "Покупки": "Покупка",
     "Пополнения": "Пополнение",
     "Переводы": "Перевод",
     "Снятия": "Снятие",
+    "Purchases": "Покупка",
+    "Purchase": "Покупка",
+    "Replenishments": "Пополнение",
+    "Replenishment": "Пополнение",
+    "Transfers": "Перевод",
+    "Transfer": "Перевод",
+    "Withdrawals": "Снятие",
+    "Withdrawal": "Снятие",
+    "Others": "Разное",
+    "Other": "Разное",
 }
+HEADERS = (
+    re.compile(r"выписка\s+по\s+kaspi\s+gold", re.IGNORECASE),
+    re.compile(r"kaspi\s+gold\s+balance\s+statement", re.IGNORECASE),
+)
 
 
 def matches(text):
-    return bool(re.search(r"выписка\s+по\s+kaspi\s+gold", text, re.IGNORECASE))
+    return any(header.search(text) for header in HEADERS)
 
 
 def parse(lines):
@@ -69,4 +92,7 @@ def parse(lines):
 
 
 def _says_no_operations(lines):
-    return any("операций нет" in line.lower() for line in lines)
+    return any(
+        "операций нет" in line.lower() or "no transactions" in line.lower()
+        for line in lines
+    )

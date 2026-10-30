@@ -40,6 +40,34 @@ def kaspi_lines(year=2026, month=10, last_day=15):
     ]
 
 
+def kaspi_lines_en(year=2026, month=10, last_day=15):
+    """The same Kaspi Gold statement as the English version of the bank's PDF."""
+    yy = f"{year % 100:02d}"
+    mm = f"{month:02d}"
+    rows = [
+        ("02", "+ 42 000,00", "Replenishment", "Stipend KBTU"),
+        ("03", "- 6 200,00", "Purchases", "MAGNUM CASH&CARRY"),
+        ("04", "+ 5 000,00", "Replenishment", "At Kaspi ATM"),
+        ("05", "- 20 000,00", "Transfers", "Halyk Bank *5678"),
+        ("09", "- 4 600,00", "Purchases", "Додо пицца"),
+        ("14", "- 10 000,00", "Withdrawals", "Kaspi ATM"),
+    ]
+    return [
+        "To Whom It May Concern",
+        "Kaspi Gold",
+        f"balance statement for the period from 01.{mm}.{yy} to {last_day:02d}.{mm}.{yy}",
+        "DEMO STUDENT",
+        "Card number: *1234",
+        "Transaction summary:",
+        "Purchases - 10 800,00 ₸",
+        "Date Amount Transaction Details",
+        *[
+            f"{d}.{mm}.{yy} {amount} ₸ {op} {details}"
+            for d, amount, op, details in rows
+        ],
+    ]
+
+
 def halyk_lines(year=2026, month=10, last_day=18):
     mm = f"{month:02d}"
     rows = [

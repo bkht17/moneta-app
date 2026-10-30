@@ -5,7 +5,9 @@ import pytest
 
 from ledger.parsers import PeriodNotFound, UnsupportedLayout, parse_lines
 from ledger.parsers.base import mask_numbers, parse_amount
-from ledger.samples import halyk_lines, kaspi_lines
+from ledger.models import Kind
+from ledger.samples import halyk_lines, kaspi_lines, kaspi_lines_en
+from ledger.services.categories import category_for, kind_for
 
 
 def test_kaspi_sample_is_parsed():
@@ -23,6 +25,44 @@ def test_kaspi_sample_is_parsed():
     assert first.operation == "Пополнение"
     assert statement.rows[1].amount == Decimal("-6200.00")
     assert statement.rows[-1].operation == "Снятие"
+
+
+def test_kaspi_english_statement_is_parsed():
+    statement = parse_lines(kaspi_lines_en())
+
+    assert statement.bank == "kaspi"
+    assert statement.last4 == "1234"
+    assert statement.period_end == date(2026, 10, 15)
+    assert [r.operation for r in statement.rows] == [
+        "Пополнение",
+        "Покупка",
+        "Пополнение",
+        "Перевод",
+        "Покупка",
+        "Снятие",
+    ]
+    # Summary lines such as "Purchases - 10 800,00 ₸" are not transactions.
+    assert len(statement.rows) == 6
+
+
+def test_atm_deposit_is_own_money_not_income():
+    assert kind_for("Пополнение", Decimal("5000"), "At Kaspi ATM") == Kind.OWN_TRANSFER
+    assert kind_for("Пополнение", Decimal("42000"), "Stipend KBTU") == Kind.TRANSFER_IN
+
+
+@pytest.mark.parametrize(
+    "description, category",
+    [
+        ("Додо пицца", "Cafés"),
+        ("Popeyes", "Cafés"),
+        ("Вузы и колледжи", "Study"),
+        ("Магазин Сымбат", "Groceries"),
+        ("Магазин одежды", "Clothing"),
+        ("YANDEX.GO", "Transport"),
+    ],
+)
+def test_category_keywords(description, category):
+    assert category_for(Kind.PURCHASE, description) == category
 
 
 def test_halyk_sample_is_parsed_with_signs_from_credit_and_debit():
