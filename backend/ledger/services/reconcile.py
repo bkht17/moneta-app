@@ -10,6 +10,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ..models import Kind, Review, ReviewFlag, Transaction
+from .categories import OWN_TRANSFERS
 
 TRANSFER_MATCH_DAYS = 2
 
@@ -116,7 +117,7 @@ def resolve(flag, resolution):
         )
     elif resolution == ReviewFlag.Resolution.OWN_TRANSFER:
         Transaction.objects.filter(pk__in=[flag.first_id, flag.second_id]).update(
-            kind=Kind.OWN_TRANSFER, category="Own transfers"
+            kind=Kind.OWN_TRANSFER, category=OWN_TRANSFERS
         )
     flag.resolution = resolution
     flag.resolved_at = timezone.now()
