@@ -6,7 +6,14 @@ import pytest
 from ledger.parsers import PeriodNotFound, UnsupportedLayout, parse_lines
 from ledger.parsers.base import mask_numbers, parse_amount
 from ledger.models import Kind
-from ledger.samples import halyk_lines, kaspi_lines, kaspi_lines_en
+from ledger.samples import (
+    halyk_lines,
+    halyk_lines_kk,
+    halyk_lines_short,
+    kaspi_lines,
+    kaspi_lines_en,
+    kaspi_lines_kk,
+)
 from ledger.services.categories import category_for, kind_for
 
 
@@ -43,6 +50,57 @@ def test_kaspi_english_statement_is_parsed():
     ]
     # Summary lines such as "Purchases - 10 800,00 ₸" are not transactions.
     assert len(statement.rows) == 6
+
+
+def test_kaspi_kazakh_statement_is_parsed():
+    statement = parse_lines(kaspi_lines_kk())
+
+    assert statement.bank == "kaspi"
+    assert statement.last4 == "1234"
+    assert (statement.period_start, statement.period_end) == (
+        date(2026, 10, 1),
+        date(2026, 10, 15),
+    )
+    assert [r.operation for r in statement.rows] == [
+        "Пополнение",
+        "Покупка",
+        "Покупка",
+        "Покупка",
+        "Снятие",
+    ]
+    assert statement.rows[1].amount == Decimal("-6200.00")
+
+
+def test_halyk_kazakh_statement_is_parsed():
+    statement = parse_lines(halyk_lines_kk())
+
+    assert statement.bank == "halyk"
+    assert statement.last4 == "5678"
+    assert statement.period_end == date(2026, 10, 18)
+    assert [r.amount for r in statement.rows] == [
+        Decimal("-2000.00"),
+        Decimal("-3000.00"),
+        Decimal("-4500.00"),
+    ]
+
+
+def test_halyk_short_layout_takes_the_sign_from_the_amount():
+    statement = parse_lines(halyk_lines_short())
+
+    assert [(r.operation, r.amount) for r in statement.rows] == [
+        ("Пополнение", Decimal("20000.00")),
+        ("Покупка", Decimal("-2000.00")),
+        ("Возврат", Decimal("2500.00")),
+    ]
+
+
+def test_unrecognised_halyk_file_says_which_bank_it_looks_like():
+    with pytest.raises(UnsupportedLayout) as exc:
+        parse_lines(
+            ["Halyk Bank", "Справка о наличии счета", "с 01.10.2026 по 18.10.2026"]
+        )
+    assert "Halyk" in str(exc.value)
+    assert "Kazakh" in str(exc.value)
 
 
 def test_atm_deposit_is_own_money_not_income():

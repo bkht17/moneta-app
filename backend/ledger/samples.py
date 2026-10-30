@@ -68,6 +68,73 @@ def kaspi_lines_en(year=2026, month=10, last_day=15):
     ]
 
 
+def kaspi_lines_kk(year=2026, month=10, last_day=15):
+    """A Kaspi Gold statement in the Kazakh-language layout."""
+    yy = f"{year % 100:02d}"
+    mm = f"{month:02d}"
+    rows = [
+        ("02", "+ 42 000,00", "Толықтыру", "Стипендия KBTU"),
+        ("03", "- 6 200,00", "Сатып алу", "MAGNUM CASH&CARRY"),
+        ("07", "- 1 800,00", "Сатып алу", "Yandex Go"),
+        ("09", "- 4 600,00", "Сатып алу", "Glovo"),
+        ("14", "- 10 000,00", "Ақша шешу", "Kaspi банкоматы"),
+    ]
+    return [
+        "«Kaspi Bank» АҚ",
+        "Kaspi Gold бойынша үзінді көшірме",
+        f"Кезең: 01.{mm}.{yy} бастап {last_day:02d}.{mm}.{yy} дейін",
+        "Демо Студент",
+        "Карта нөмірі: *1234",
+        "Күні Сомасы Операция Толығырақ",
+        *[
+            f"{d}.{mm}.{yy} {amount} ₸ {op} {details}"
+            for d, amount, op, details in rows
+        ],
+    ]
+
+
+def halyk_lines_kk(year=2026, month=10, last_day=18):
+    """A Halyk card account statement in the Kazakh-language layout."""
+    mm = f"{month:02d}"
+    rows = [
+        ("06", "Spotify жазылымы", "-2 000,00", "0,00", "2 000,00"),
+        ("10", "Copy centre KBTU", "-3 000,00", "0,00", "3 000,00"),
+        ("11", "Lanzhou cafe", "-4 500,00", "0,00", "4 500,00"),
+    ]
+    lines = [
+        "«Қазақстан Халық Банкі» АҚ Halyk Bank",
+        "Карт шоты бойынша үзінді көшірме",
+        f"Кезең: 01.{mm}.{year} бастап {last_day:02d}.{mm}.{year} дейін",
+        "Карта: Visa *5678",
+        "Операция күні Өңдеу күні Операцияның сипаттамасы Сомасы Валюта "
+        "Кіріс Шығыс Комиссия Карта №",
+    ]
+    for d, desc, op_amount, credit, debit in rows:
+        processed = f"{int(d) + 1:02d}"
+        lines.append(
+            f"{d}.{mm}.{year} {processed}.{mm}.{year} {desc} {op_amount} KZT "
+            f"{credit} {debit} 0,00 *5678"
+        )
+    lines.append("Барлығы: кіріс 0,00 шығыс 9 500,00")
+    return lines
+
+
+def halyk_lines_short(year=2026, month=10, last_day=18):
+    """A Halyk statement with only date, description, signed amount and currency."""
+    mm = f"{month:02d}"
+    return [
+        "Halyk Bank",
+        "Card account statement",
+        f"for the period from 01.{mm}.{year} to {last_day:02d}.{mm}.{year}",
+        "Card: *5678",
+        "Date Description Amount Currency",
+        f"05.{mm}.{year} Top-up from Kaspi card 20 000,00 KZT",
+        f"06.{mm}.{year} Spotify -2 000,00 KZT",
+        f"12.{mm}.{year} Refund LC Waikiki 2 500,00 KZT",
+        "Total: 20 500,00",
+    ]
+
+
 def halyk_lines(year=2026, month=10, last_day=18):
     mm = f"{month:02d}"
     rows = [

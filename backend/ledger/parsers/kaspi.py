@@ -1,5 +1,5 @@
-"""Kaspi Gold statement, Russian ("Выписка по Kaspi Gold") or English
-("Kaspi Gold balance statement").
+"""Kaspi Gold statement in Russian ("Выписка по Kaspi Gold"), Kazakh ("Kaspi Gold
+бойынша үзінді көшірме") or English ("Kaspi Gold balance statement").
 
 Expected table rows, one per line after text extraction:
     02.10.25  + 42 000,00 ₸  Пополнение     С карты другого банка
@@ -7,7 +7,8 @@ Expected table rows, one per line after text extraction:
     03.10.25  - 6 200,00 ₸   Purchases      MAGNUM CASH&CARRY
     05.10.25  + 9 000,00 ₸   Replenishment  At Kaspi ATM
 
-English operation names are mapped to the Russian ones the rest of the app uses.
+Kazakh and English operation names are mapped to the Russian ones the rest of the
+app uses.
 """
 
 import re
@@ -30,7 +31,8 @@ ROW_RE = re.compile(
     rf"^(?P<date>\d{{2}}\.\d{{2}}\.\d{{2}})\s+(?P<amount>{AMOUNT_RE})\s*(?:₸|KZT|[^\w\s])?\s+"
     r"(?P<op>Покупки|Покупка|Пополнения|Пополнение|Переводы|Перевод|Снятия|Снятие|Разное"
     r"|Purchases|Purchase|Replenishments|Replenishment|Transfers|Transfer"
-    r"|Withdrawals|Withdrawal|Others|Other)\b"
+    r"|Withdrawals|Withdrawal|Others|Other"
+    r"|Сатып алу|Толықтыру|Аударымдар|Аударым|Ақша шешу|Ақша алу|Шешу|Әртүрлі|Басқа)\b"
     r"\s*(?P<details>.*)$"
 )
 CARD_RE = re.compile(
@@ -51,10 +53,20 @@ OPERATIONS = {
     "Withdrawal": "Снятие",
     "Others": "Разное",
     "Other": "Разное",
+    "Сатып алу": "Покупка",
+    "Толықтыру": "Пополнение",
+    "Аударымдар": "Перевод",
+    "Аударым": "Перевод",
+    "Ақша шешу": "Снятие",
+    "Ақша алу": "Снятие",
+    "Шешу": "Снятие",
+    "Әртүрлі": "Разное",
+    "Басқа": "Разное",
 }
 HEADERS = (
     re.compile(r"выписка\s+по\s+kaspi\s+gold", re.IGNORECASE),
     re.compile(r"kaspi\s+gold\s+balance\s+statement", re.IGNORECASE),
+    re.compile(r"kaspi\s+gold\s+бойынша\s+үзінді\s+көшірме", re.IGNORECASE),
 )
 
 
@@ -93,6 +105,9 @@ def parse(lines):
 
 def _says_no_operations(lines):
     return any(
-        "операций нет" in line.lower() or "no transactions" in line.lower()
+        any(
+            phrase in line.lower()
+            for phrase in ("операций нет", "no transactions", "операциялар жоқ")
+        )
         for line in lines
     )
